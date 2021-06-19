@@ -1,0 +1,14 @@
+black(2,7).
+black(3,7).
+black(3,9).
+black(3,10).
+black(4,9).
+black(5,10).
+black(7,6).
+black(9,6).
+black(10,6).
+black(8,5).
+black(8,7).
+white( 1,11).
+white( 1,13).
+white( 1,15).

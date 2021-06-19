@@ -1,0 +1,10 @@
+white(1,7).
+black(2,7).
+black(3,7).
+black(4,7).
+white(2,6).
+white(2,5).
+white(5,5).
+white(6,5).
+black(3,6).
+black(4,6).

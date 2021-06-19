@@ -1,0 +1,25 @@
+say(a, b, human).
+say(a, b, evil).
+say(b, a, human).
+say(c, a, \+lying).
+say(b, c, \+human).
+say(b, d, human).
+say(d, e, \+lying).
+-
+divine(a).
+human(a).
+evil(a).
+divine(b).
+human(b).
+evil(b).
+divine(c).
+human(c).
+evil(c).
+divine(d).
+human(d).
+evil(d).
+divine(e).
+human(e).
+evil(e).
+day.
+night.
