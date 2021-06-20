@@ -453,7 +453,6 @@ triggerLongLine( Player, Point ):-
 ;   undoMove( Player, Point), false
 .
 triggerPerfect5( Player, Point ):-
-    addMove( Player, Point),
     ( perfect5( Player, L1), member(Point, L1) )
 ->  undoMove( Player, Point)
 ;   undoMove( Player, Point), false
