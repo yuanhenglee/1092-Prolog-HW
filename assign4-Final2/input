@@ -9,6 +9,14 @@ black(9,6).
 black(10,6).
 black(8,5).
 black(8,7).
-white( 1,11).
-white( 1,13).
-white( 1,15).
+white( 7,8).
+white( 6,5).
+white( 6,12).
+white( 7,12).
+white( 9,14).
+white( 3,14).
+white( 11,12).
+white( 12,12).
+white( 12,4).
+white( 5,3).
+white( 9,3).

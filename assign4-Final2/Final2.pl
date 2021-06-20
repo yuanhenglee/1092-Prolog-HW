@@ -22,8 +22,8 @@ read_predicates([]).
 hitTimeLimit:-
     nb_getval( timeStart, TimeStart),
     statistics(runtime,[TimeStop|_]),
-    T_ms is TimeStop - TimeStart, false,
-    T_ms > 4800
+    T_ms is TimeStop - TimeStart, 
+    T_ms > 4500
     %write(T_ms)
 .
 
@@ -33,7 +33,7 @@ xor_aggr( [H|T], Val ):-
     Val is H xor Val1
 .
 
-getKey( Player, [X,Y], Key ):- Key is random(18446744073709551616) .
+getKey( _Player, _P, Key ):- Key is random(18446744073709551616) .
 
 setBoard:-
     findall( Key, (white(X,Y),getKey( white, [X,Y], Key )),  Ws ),
@@ -431,7 +431,6 @@ longLine( Player, L ):-
 
 % black only
 doubleLive4( Player, Point ):-
-    addMove( Player, Point ),
     ( 
         just4( Player, L1, [H1]), just4(Player, L2,[H2]),
         L1 \= L2, member(Point, L1), member(Point, L2),
@@ -441,13 +440,11 @@ doubleLive4( Player, Point ):-
 ;   undoMove( Player, Point ), false
 .
 doubleLive3( Player, Point ):-
-    addMove( Player, Point),
     ( live3( Player, L1, _), live3(Player, L2, _), L1 \= L2 , member(Point,L1), member(Point,L2) )
 ->  undoMove( Player, Point)
 ;   undoMove( Player, Point), false
 .
 triggerLongLine( Player, Point ):-
-    addMove( Player, Point),
     ( longLine( Player, L1), member(Point, L1) )
 ->  undoMove( Player, Point)
 ;   undoMove( Player, Point), false
@@ -466,6 +463,7 @@ validForP( black, Point ):-
     (
         (
             isEmpty( Point ), isValid(Point),
+            addMove( Player, Point),
             (
                 triggerPerfect5( black, Point );
                 (
@@ -533,7 +531,7 @@ bestMove( Player, P ):-
     selectPossiblePos( Player, PossiblePositions ),
     %write( PossiblePositions ),
     % ! SET DEPTH !
-    chooseMax( PossiblePositions, 3, -99999999, 99999999, Player, nil, (P,_Value))% ,write(Value)
+    chooseMax( PossiblePositions, 4, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
 .
 
 % already lose    
@@ -631,6 +629,6 @@ main :-
     setBoard,
     determineSide( Player ),
     %opponent( Player, OtherP ),
-    time(bestMove( Player, P )),
+    bestMove( Player, P ),
     writeMove( Player, P )
 .
