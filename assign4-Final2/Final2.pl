@@ -27,29 +27,6 @@ hitTimeLimit:-
     %write(T_ms)
 .
 
-xor_aggr( [H], H ).
-xor_aggr( [H|T], Val ):-
-    xor_aggr(T, Val1 ),
-    Val is H xor Val1
-.
-
-getKey( _Player, _P, Key ):- Key is random(18446744073709551616) .
-
-setBoard:-
-    findall( Key, (white(X,Y),getKey( white, [X,Y], Key )),  Ws ),
-    findall( Key, (black(X,Y),getKey( black, [X,Y], Key )),  Bs ),
-    append( Ws,Bs, AllKeys ),
-    xor_aggr( AllKeys, Board ),
-    nb_setval( board, Board)
-.
-
-updateBoard( Player, P ):-
-    getKey( Player, P, Key ),
-    nb_getval( board, Cur ),
-    New is Key xor Cur,
-    nb_setval( board, New )
-.
-
 % BOARD PATTERN
 
 isEmpty( [X, Y] ):-
@@ -100,7 +77,6 @@ relativeTo( [X1, Y1], [X2, Y2] ):-
 
 addMove( Player, [X, Y] ):-
     call( Player, X, Y);
-    updateBoard( Player, [X,Y] ),
     forall( 
         relativeTo( [X,Y],R ),
         (
@@ -115,7 +91,6 @@ addMove( Player, [X, Y] ):-
 
 undoMove( Player, [X, Y] ):-
     \+call( Player, X, Y);
-    updateBoard( Player, [X,Y] ),
     forall( 
         relativeTo( [X,Y],R ),
         (
@@ -430,29 +405,21 @@ longLine( Player, L ):-
 .
 
 % black only
-doubleLive4( Player, Point ):-
+double4( Player, Point ):-
     ( 
         just4( Player, L1, [H1]), just4(Player, L2,[H2]),
         L1 \= L2, member(Point, L1), member(Point, L2),
         validForP( Player, H1 ), validForP( Player, H2 )
     )
-->  undoMove( Player, Point )
-;   undoMove( Player, Point ), false
 .
 doubleLive3( Player, Point ):-
     ( live3( Player, L1, _), live3(Player, L2, _), L1 \= L2 , member(Point,L1), member(Point,L2) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
 triggerLongLine( Player, Point ):-
     ( longLine( Player, L1), member(Point, L1) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
 triggerPerfect5( Player, Point ):-
     ( perfect5( Player, L1), member(Point, L1) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
 
 
@@ -463,18 +430,18 @@ validForP( black, Point ):-
     (
         (
             isEmpty( Point ), isValid(Point),
-            addMove( Player, Point),
+            addMove( black, Point),
             (
                 triggerPerfect5( black, Point );
                 (
                     \+doubleLive3( black, Point ),
-                    \+doubleLive4( black, Point ),
+                    \+double4( black, Point ),
                     \+triggerLongLine( black, Point )
                 )
             )
         )
-    ->  assert( cached_V(Point) )
-    ;   assert( cached_NV(Point) ),false
+    ->  undoMove( black, Point), assert( cached_V(Point) )
+    ;   undoMove( black, Point), assert( cached_NV(Point) ),false
     )
 .
 
@@ -531,22 +498,28 @@ bestMove( Player, P ):-
     selectPossiblePos( Player, PossiblePositions ),
     %write( PossiblePositions ),
     % ! SET DEPTH !
-    chooseMax( PossiblePositions, 4, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
+    chooseMax( PossiblePositions, 3, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
 .
 
 % already lose    
-evalScore( Player, _Board, -99999995 ):-
+evalScore( Player, Score ):-
+    ( win( Player ), Score is 99999995 );
     opponent( Player, OtherP ),
-    just4( OtherP,_,[P1]),validForP( OtherP, P1 )
-.
-% already win
-evalScore( Player, _Board, 99999995 ):- win( Player ).
-evalScore( Player, _Board, 99999995 ):- 
-    just4( Player,_,[P1]),validForP( Player, P1 ), 
-    just4( Player,_,[P2]), validForP( Player, P2 ), P1\=P2
+    ( just4( OtherP,_,[P1]),validForP( OtherP, P1 ) )
+->  Score is -99999995
+;   (
+        (
+            (
+                just4( Player,_,[P1]),validForP( Player, P1 ), 
+                just4( Player,_,[P2]), validForP( Player, P2 ), P1\=P2
+            )
+        )
+    ->  Score is 99999995 
+    ;   false
+    )
 .
 
-evalScore( Player, _Board, Score ):-
+evalScore( Player, Score ):-
     opponent( Player, OtherP ),
     % just 4
     aggregate_all(count, L, just4( Player,L,_), J4P),
@@ -597,15 +570,14 @@ cutoff( T, Depth, Alpha, Beta, Player, Record, BestMove, (_H, Value) ):-
 chooseMax( [], _Depth, Alpha, _Beta, _Player, Move, (Move, Alpha) ).
 chooseMax( [H|T], Depth, Alpha, Beta, Player, Record, BestMove ):-
     minmax( H, Depth, Alpha, Beta, Player, PossibleScore ),
-    %( (Depth>=0, white(8,6),black(6,9) ) ->(write(Depth),writeMove(Player,H),write(":"),write(PossibleScore),nl);true),
+    %( (Depth>=0, black(12,4) ) ->(write(Depth),writeMove(Player,H),write(":"),write(PossibleScore),nl);true),
     cutoff( T, Depth, Alpha, Beta, Player, Record, BestMove, (H, PossibleScore) )
 .
 
 minmax( Position, Depth, Alpha, Beta, Player, ReturnS ):-
     addMove( Player, Position ),
     (
-        nb_getval( board, Board ),
-        evalScore( Player, Board, Score ),
+        evalScore( Player, Score ),
         ( Depth = 0 ; Score > 99999990 ; hitTimeLimit) ,
         undoMove( Player, Position ), ReturnS is Score
     );
@@ -626,9 +598,8 @@ main :-
     statistics(runtime,[TimeStart|_]),
     nb_setval( timeStart, TimeStart ),
     read_predicates(_),
-    setBoard,
     determineSide( Player ),
     %opponent( Player, OtherP ),
-    bestMove( Player, P ),
+    time(bestMove( Player, P ) ),
     writeMove( Player, P )
 .

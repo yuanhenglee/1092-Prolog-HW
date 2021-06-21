@@ -1,22 +1,29 @@
-black(2,7).
-black(3,7).
-black(3,9).
-black(3,10).
-black(4,9).
-black(5,10).
-black(7,6).
+black(8,8).
+white(9,9).
+black(9,7).
+white(10,6).
+black(6,10).
+white(5,11).
 black(9,6).
-black(10,6).
-black(8,5).
+white(9,4).
+black(9,8).
+white(6,8).
+black(7,8).
+white(10,8).
 black(8,7).
-white( 7,8).
-white( 6,5).
-white( 6,12).
-white( 7,12).
-white( 9,14).
-white( 3,14).
-white( 11,12).
-white( 12,12).
-white( 12,4).
-white( 5,3).
-white( 9,3).
+white(6,9).
+black(10,5).
+white(11,4).
+black(8,5).
+white(8,4).
+black(7,4).
+white(10,7).
+black(8,9).
+white(8,6).
+black(8,10).
+white(8,11).
+black(10,9).
+white(10,4).
+black(12,4).
+white(9,5).
+//white win

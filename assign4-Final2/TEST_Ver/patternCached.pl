@@ -3,6 +3,7 @@
 :- dynamic black/2.
 :- table relativeTo/2.
 :- table adjacentTo/2.
+:- dynamic cached_J4/3.
 :- dynamic cached_V/1.
 :- dynamic cached_NV/1.
 
@@ -20,8 +21,8 @@ read_predicates([]).
 hitTimeLimit:-
     nb_getval( timeStart, TimeStart),
     statistics(runtime,[TimeStop|_]),
-    T_ms is TimeStop - TimeStart,
-    T_ms > 4800
+    T_ms is TimeStop - TimeStart, 
+    T_ms > 4500
     %write(T_ms)
 .
 
@@ -82,6 +83,10 @@ addMove( Player, [X, Y] ):-
             (cached_NV( R ) -> retract(cached_NV( R ));true)
         )
     ),
+    forall(
+         ( cached_J4( P, L, H ), member([X,Y],H) ),
+         retract( cached_J4( P, L, H ) )
+    ),
     atomic_list_concat([Player, "(", X, ",", Y, ")"], Fact),
     term_to_atom(Term, Fact),
     assert(Term)
@@ -96,13 +101,17 @@ undoMove( Player, [X, Y] ):-
             (cached_NV( R ) -> retract(cached_NV( R ));true)
         )
     ),
+    forall(
+         ( cached_J4( P, L, H ), member([X,Y],L) ),
+         retract( cached_J4( P, L, H ) )
+    ),
     atomic_list_concat([Player, "(", X, ",", Y, ")"], Fact),
     term_to_atom(Term, Fact),
     retract(Term)
 .
 
 writeMove( Player, [X, Y]):-
-    write("\n"),write(Player), write("("), write(X), write(", "), write(Y), write(").")
+    write(Player), write("("), write(X), write(", "), write(Y), write(")\n")
 .
 
 writeMoves( Player, [[X,Y]|T] ):-
@@ -112,7 +121,9 @@ writeMoves( Player, [[X,Y]|T] ):-
 writeMoves( _, []).
 
 
-% 5 types of just4:
+% 6 types of just4:
+% 0 cached!!
+just4( Player, L, H ):- cached_J4( Player, L, H ).
 % 1
 just4( Player, L , H):-
     direction( OX, OY ),
@@ -126,8 +137,10 @@ just4( Player, L , H):-
     X5 is X4+OX, Y5 is Y4+OY,
     validForP( white, [X5, Y5]),
     %\+triggerLongLine( Player , X5, Y5 ),
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4]], L ),
-    list_to_set( [[X5,Y5]], H )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4]], L ),
+    append( [], [[X5,Y5]], H ),
+
+    assert( cached_J4( Player, L, H ))
 .
 % 2
 just4( Player, L , H):-
@@ -142,8 +155,10 @@ just4( Player, L , H):-
     %\+triggerLongLine( Player , X4, Y4 ),
     X5 is X4+OX, Y5 is Y4+OY,
     call( Player, X5, Y5),
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3],[X5,Y5]], L ),
-    list_to_set( [[X4,Y4]], H )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3],[X5,Y5]], L ),
+    append( [], [[X4,Y4]], H ),
+
+    assert( cached_J4( Player, L, H ))
 .
 % 3
 just4( Player, L , H):-
@@ -158,8 +173,10 @@ just4( Player, L , H):-
     call( Player, X4, Y4),
     X5 is X4+OX, Y5 is Y4+OY,
     call( Player, X5, Y5),
-    list_to_set( [[X1,Y1],[X2,Y2],[X4,Y4],[X5,Y5]], L ),
-    list_to_set( [[X3,Y3]], H )
+    append( [], [[X1,Y1],[X2,Y2],[X4,Y4],[X5,Y5]], L ),
+    append( [], [[X3,Y3]], H ),
+
+    assert( cached_J4( Player, L, H ))
 .
 % 4
 just4( Player, L , H):-
@@ -174,8 +191,10 @@ just4( Player, L , H):-
     call( Player, X4, Y4),
     X5 is X4+OX, Y5 is Y4+OY,
     call( Player, X5, Y5),
-    list_to_set( [[X1,Y1],[X3,Y3],[X4,Y4],[X5,Y5]], L ),
-    list_to_set( [[X2,Y2]], H )
+    append( [], [[X1,Y1],[X3,Y3],[X4,Y4],[X5,Y5]], L ),
+    append( [], [[X2,Y2]], H ),
+
+    assert( cached_J4( Player, L, H ))
 .
 % 5
 just4( Player, L , H ):-
@@ -190,8 +209,10 @@ just4( Player, L , H ):-
     call( Player, X4, Y4),
     X5 is X4+OX, Y5 is Y4+OY,
     call( Player, X5, Y5),
-    list_to_set( [[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5]], L ),
-    list_to_set( [[X1,Y1]], H )
+    append( [], [[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5]], L ),
+    append( [], [[X1,Y1]], H ),
+
+    assert( cached_J4( Player, L, H ))
 .
 
 %1
@@ -202,7 +223,7 @@ just3( Player, L , H ):-
     call( Player, X2, Y2),
     X3 is X2+OX, Y3 is Y2+OY,
     call( Player, X3, Y3),
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3]], L ),
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3]], L ),
 
     HX2 is X1-OX, HY2 is Y1-OY, 
     HX1 is HX2-OX, HY1 is HY2-OY,
@@ -210,9 +231,9 @@ just3( Player, L , H ):-
     HX4 is HX3+OX, HY4 is HY3+OY,
 
     (
-        (validForP( white, [HX1, HY1]), validForP( white, [HX2, HY2]), list_to_set( [[HX1,HY1],[HX2,HY2]], H ) );
-        (validForP( white, [HX2, HY2]), validForP( white, [HX3, HY3]), list_to_set( [[HX2,HY2],[HX3,HY3]], H ) );
-        (validForP( white, [HX3, HY3]), validForP( white, [HX4, HY4]), list_to_set( [[HX3,HY3],[HX4,HY4]], H ) )
+        (validForP( white, [HX1, HY1]), validForP( white, [HX2, HY2]), append( [], [[HX1,HY1],[HX2,HY2]], H ) );
+        (validForP( white, [HX2, HY2]), validForP( white, [HX3, HY3]), append( [], [[HX2,HY2],[HX3,HY3]], H ) );
+        (validForP( white, [HX3, HY3]), validForP( white, [HX4, HY4]), append( [], [[HX3,HY3],[HX4,HY4]], H ) )
     )
 .
 % 2
@@ -226,8 +247,8 @@ just3( Player, L , H ):-
     X5 is X4+OX, Y5 is Y4+OY,
     call( Player, X5, Y5 ),
     ( 
-        (validForP( white, [X4, Y4] ), call( Player, X2, Y2 ), list_to_set( [[X1,Y1],[X2,Y2],[X5,Y5]], L ), list_to_set( [[X4,Y4],[X3,Y3]], H ));
-        (validForP( white, [X2, Y2] ), call( Player, X4, Y4 ), list_to_set( [[X1,Y1],[X5,Y5],[X4,Y4]], L ), list_to_set( [[X3,Y3],[X2,Y2]], H ))
+        (validForP( white, [X4, Y4] ), call( Player, X2, Y2 ), append( [], [[X1,Y1],[X2,Y2],[X5,Y5]], L ), append( [], [[X4,Y4],[X3,Y3]], H ));
+        (validForP( white, [X2, Y2] ), call( Player, X4, Y4 ), append( [], [[X1,Y1],[X5,Y5],[X4,Y4]], L ), append( [], [[X3,Y3],[X2,Y2]], H ))
     )
 .
 % 3
@@ -241,10 +262,10 @@ just3( Player, L , H ):-
     HX1 is X1-OX, HY1 is Y1-OY,
     HX2 is X4+OX, HY2 is Y4+OY,
     ( 
-        (validForP( white, [HX1, HY1] ), call( Player, X2, Y2 ), validForP( white, [X3, Y3]), list_to_set( [[X1,Y1],[X2,Y2],[X4,Y4]], L ), list_to_set( [[HX1,HY1],[X3,Y3]], H ));
-        (validForP( white, [HX1, HY1] ), call( Player, X3, Y3 ), validForP( white, [X2, Y2]), list_to_set( [[X1,Y1],[X3,Y3],[X4,Y4]], L ), list_to_set( [[HX1,HY1],[X2,Y2]], H ));
-        (validForP( white, [HX2, HY2] ), call( Player, X2, Y2 ), validForP( white, [X3, Y3]), list_to_set( [[X1,Y1],[X2,Y2],[X4,Y4]], L ), list_to_set( [[X3,Y3],[HX2,HY2]], H ));
-        (validForP( white, [HX2, HY2] ), call( Player, X3, Y3 ), validForP( white, [X2, Y2]), list_to_set( [[X1,Y1],[X3,Y3],[X4,Y4]], L ), list_to_set( [[X2,Y2],[HX2,HY2]], H ))
+        (validForP( white, [HX1, HY1] ), call( Player, X2, Y2 ), validForP( white, [X3, Y3]), append( [], [[X1,Y1],[X2,Y2],[X4,Y4]], L ), append( [], [[HX1,HY1],[X3,Y3]], H ));
+        (validForP( white, [HX1, HY1] ), call( Player, X3, Y3 ), validForP( white, [X2, Y2]), append( [], [[X1,Y1],[X3,Y3],[X4,Y4]], L ), append( [], [[HX1,HY1],[X2,Y2]], H ));
+        (validForP( white, [HX2, HY2] ), call( Player, X2, Y2 ), validForP( white, [X3, Y3]), append( [], [[X1,Y1],[X2,Y2],[X4,Y4]], L ), append( [], [[X3,Y3],[HX2,HY2]], H ));
+        (validForP( white, [HX2, HY2] ), call( Player, X3, Y3 ), validForP( white, [X2, Y2]), append( [], [[X1,Y1],[X3,Y3],[X4,Y4]], L ), append( [], [[X2,Y2],[HX2,HY2]], H ))
     )
 .
 % 4
@@ -261,8 +282,8 @@ just3( Player, L , H ):-
     validForP( white, [X2, Y2]),
     validForP( white, [X4, Y4]),
 
-    list_to_set( [[X1,Y1],[X3,Y3],[X5,Y5]], L ),
-    list_to_set( [[X2,Y2],[X4,Y4]], H )
+    append( [], [[X1,Y1],[X3,Y3],[X5,Y5]], L ),
+    append( [], [[X2,Y2],[X4,Y4]], H )
 .
 
 % not all 2, just those can be a 3 in 1 step
@@ -276,12 +297,12 @@ just2( Player, L , H ):-
     HX3 is X2+OX, HY3 is Y2+OY,
     HX4 is HX3+OX, HY4 is HY3+OY,
     (
-        ( validForP( white, [HX1, HY1]), validForP( white, [HX2, HY2]), list_to_set( [[HX1,HY1],[HX2,HY2]], H ) ); 
-        ( validForP( white, [HX2, HY2]), validForP( white, [HX3, HY3]), list_to_set( [[HX2,HY2],[HX3,HY3]], H ) );
-        ( validForP( white, [HX3, HY3]), validForP( white, [HX4, HY4]), list_to_set( [[HX3,HY3],[HX4,HY4]], H ) )
+        ( validForP( white, [HX1, HY1]), validForP( white, [HX2, HY2]), append( [], [[HX1,HY1],[HX2,HY2]], H ) ); 
+        ( validForP( white, [HX2, HY2]), validForP( white, [HX3, HY3]), append( [], [[HX2,HY2],[HX3,HY3]], H ) );
+        ( validForP( white, [HX3, HY3]), validForP( white, [HX4, HY4]), append( [], [[HX3,HY3],[HX4,HY4]], H ) )
     ),
 
-    list_to_set( [[X1,Y1],[X2,Y2]], L )
+    append( [], [[X1,Y1],[X2,Y2]], L )
 .
 just2( Player, L , H ):-
     direction( OX, OY ),
@@ -292,11 +313,11 @@ just2( Player, L , H ):-
     HX1 is X1-OX, HY1 is Y1-OY,
     HX3 is X3+OX, HY3 is Y3+OY,
     (
-        ( validForP( white, [HX1, HY1]), validForP( white, [X2, Y2]), list_to_set( [[HX1,HY1],[X2,Y2]], H ) ); 
-        ( validForP( white, [X2, Y2]), validForP( white, [HX3, HY3]), list_to_set( [[X2,Y2],[HX3,HY3]], H ) )
+        ( validForP( white, [HX1, HY1]), validForP( white, [X2, Y2]), append( [], [[HX1,HY1],[X2,Y2]], H ) ); 
+        ( validForP( white, [X2, Y2]), validForP( white, [HX3, HY3]), append( [], [[X2,Y2],[HX3,HY3]], H ) )
     ),
 
-    list_to_set( [[X1,Y1],[X3,Y3]], L )
+    append( [], [[X1,Y1],[X3,Y3]], L )
 .
 
 direction( 1, 1 ).
@@ -320,8 +341,8 @@ live4( Player, L, H ):-
     HX2 is X4+OX, HY2 is Y4+OY,
     validForP( Player , [HX2, HY2] ),
     
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4]], L ),
-    list_to_set( [[HX1,HY1],[HX2,HY2]], H )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4]], L ),
+    append( [], [[HX1,HY1],[HX2,HY2]], H )
 .
 
 jump3( Player, L, H ):-
@@ -336,8 +357,8 @@ jump3( Player, L, H ):-
     HX2 is X4+OX, HY2 is Y4+OY,
     validForP( white, [HX2, HY2] ),
     ( 
-        (call( Player, X2, Y2 ), validForP( white, [X3, Y3]), list_to_set( [[X1,Y1],[X2,Y2],[X4,Y4]], L ), list_to_set( [[X3,Y3]], H ));
-        (call( Player, X3, Y3 ), validForP( white, [X2, Y2]), list_to_set( [[X1,Y1],[X3,Y3],[X4,Y4]], L ), list_to_set( [[X2,Y2]], H ))
+        (call( Player, X2, Y2 ), validForP( white, [X3, Y3]), append( [], [[X1,Y1],[X2,Y2],[X4,Y4]], L ), append( [], [[X3,Y3]], H ));
+        (call( Player, X3, Y3 ), validForP( white, [X2, Y2]), append( [], [[X1,Y1],[X3,Y3],[X4,Y4]], L ), append( [], [[X2,Y2]], H ))
     )
 .
 straight3( Player, L, H ):-
@@ -354,10 +375,10 @@ straight3( Player, L, H ):-
     HX3 is HX1-OX, HY3 is HY1-OY ,
     HX4 is HX2+OX, HY4 is HY2+OY ,
     (　
-        (validForP( white, [HX3, HY3]),list_to_set( [[HX1,HY1]], H ) );
-        (validForP( white, [HX4, HY4]),list_to_set( [[HX2,HY2]], H ) )
+        (validForP( white, [HX3, HY3]),append( [], [[HX1,HY1]], H ) );
+        (validForP( white, [HX4, HY4]),append( [], [[HX2,HY2]], H ) )
     ),
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3]], L )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3]], L )
 .
 
 live3( Player, L, H ):- straight3( Player, L, H ) .
@@ -381,7 +402,7 @@ perfect5( Player, L ):-
     HX2 is X5+OX, HY2 is Y5+OY,
     \+call( Player, HX2, HY2),
 
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5]], L )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5]], L )
 .
 
 longLine( Player, L ):-
@@ -399,39 +420,26 @@ longLine( Player, L ):-
     X6 is X5+OX, Y6 is Y5+OY,
     call( Player, X6, Y6),
 
-    list_to_set( [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5],[X6,Y6]], L )
+    append( [], [[X1,Y1],[X2,Y2],[X3,Y3],[X4,Y4],[X5,Y5],[X6,Y6]], L )
 .
 
 % black only
-doubleLive4( Player, Point ):-
-    addMove( Player, Point ),
+double4( Player, Point ):-
     ( 
         just4( Player, L1, [H1]), just4(Player, L2,[H2]),
         L1 \= L2, member(Point, L1), member(Point, L2),
         validForP( Player, H1 ), validForP( Player, H2 )
     )
-->  undoMove( Player, Point )
-;   undoMove( Player, Point ), false
 .
 doubleLive3( Player, Point ):-
-    addMove( Player, Point),
     ( live3( Player, L1, _), live3(Player, L2, _), L1 \= L2 , member(Point,L1), member(Point,L2) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
 triggerLongLine( Player, Point ):-
-    addMove( Player, Point),
     ( longLine( Player, L1), member(Point, L1) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
 triggerPerfect5( Player, Point ):-
-    addMove( Player, Point),
     ( perfect5( Player, L1), member(Point, L1) )
-->  undoMove( Player, Point)
-;   undoMove( Player, Point), false
 .
-
 
 validForP( white, Point ):- isEmpty( Point ), isValid(Point) .
 validForP( black, Point ):- cached_V(Point), \+cached_NV(Point).
@@ -440,17 +448,18 @@ validForP( black, Point ):-
     (
         (
             isEmpty( Point ), isValid(Point),
+            addMove( black, Point),
             (
                 triggerPerfect5( black, Point );
                 (
                     \+doubleLive3( black, Point ),
-                    \+doubleLive4( black, Point ),
+                    \+double4( black, Point ),
                     \+triggerLongLine( black, Point )
                 )
             )
         )
-    ->  assert( cached_V(Point) )
-    ;   assert( cached_NV(Point) ),false
+    ->  undoMove( black, Point), assert( cached_V(Point) )
+    ;   undoMove( black, Point), assert( cached_NV(Point) ),false
     )
 .
 
@@ -507,20 +516,23 @@ bestMove( Player, P ):-
     selectPossiblePos( Player, PossiblePositions ),
     %write( PossiblePositions ),
     % ! SET DEPTH !
-    chooseMax( PossiblePositions, 3, -99999999, 99999999, Player, nil, (P,Value))% ,write(Value)
+    chooseMax( PossiblePositions, 3, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
 .
 
-% already lose    
-evalScore( Player, -99999995 ):- 
+evalScore( Player, Score ):-
     opponent( Player, OtherP ),
-    just4( OtherP,_,[P1]),validForP( OtherP, P1 )
-.
-% already win
-evalScore( Player, 99999995 ):- 
-    win( Player );
-    ( 
-        just4( Player,_,[P1]),validForP( Player, P1 ), 
-        just4( Player,_,[P2]), validForP( Player, P2 ), P1\=P2
+    ( just4( OtherP,_,[P1]),validForP( OtherP, P1 ) )
+->  Score is -99999995
+;   (
+        (
+            win( Player );
+            (
+                just4( Player,_,[P1]),validForP( Player, P1 ), 
+                just4( Player,_,[P2]), validForP( Player, P2 ), P1\=P2
+            )
+        )
+    ->  Score is 99999995 
+    ;   false
     )
 .
 
@@ -575,7 +587,7 @@ cutoff( T, Depth, Alpha, Beta, Player, Record, BestMove, (_H, Value) ):-
 chooseMax( [], _Depth, Alpha, _Beta, _Player, Move, (Move, Alpha) ).
 chooseMax( [H|T], Depth, Alpha, Beta, Player, Record, BestMove ):-
     minmax( H, Depth, Alpha, Beta, Player, PossibleScore ),
-    %( (Depth>=0, white(8,6),black(6,9) ) ->(write(Depth),writeMove(Player,H),write(":"),write(PossibleScore),nl);true),
+    ( (Depth>=1, black(5,10),white(8,13) ) ->(write(Depth),writeMove(Player,H),write(":"),write(PossibleScore),nl);true),
     cutoff( T, Depth, Alpha, Beta, Player, Record, BestMove, (H, PossibleScore) )
 .
 
@@ -605,6 +617,6 @@ main :-
     read_predicates(_),
     determineSide( Player ),
     %opponent( Player, OtherP ),
-    time(bestMove( Player, P )),
+    time(bestMove( Player, P ) ),
     writeMove( Player, P )
 .
