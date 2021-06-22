@@ -104,7 +104,7 @@ undoMove( Player, [X, Y] ):-
 .
 
 writeMove( Player, [X, Y]):-
-    write(Player), write("("), write(X), write(", "), write(Y), write(")\n")
+    nl,write(Player), write("("), write(X), write(", "), write(Y), write(").")
 .
 
 writeMoves( Player, [[X,Y]|T] ):-
@@ -498,7 +498,7 @@ bestMove( Player, P ):-
     selectPossiblePos( Player, PossiblePositions ),
     %write( PossiblePositions ),
     % ! SET DEPTH !
-    chooseMax( PossiblePositions, 3, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
+    chooseMax( PossiblePositions, 5, -99999999, 99999999, Player, nil, (P,Value)) ,write(Value)
 .
 
 % already lose    
